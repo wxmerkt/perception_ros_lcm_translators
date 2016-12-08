@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>perception_ros_lcm_translators</name>
+  <version>0.0.0</version>
+  <description>Receives ROS perception data and translates to LCM.</description>
+
+  <maintainer email="wolfgang.merkt@ed.ac.uk">Wolfgang Merkt</maintainer>
+
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+  <url type="repository">https://github.com/wxmerkt/perception_ros_lcm_translators</url>
+  <url type="bugtracker">https://github.com/wxmerkt/perception_ros_lcm_translators</url>
+
+  <author email="wolfgang.merkt@ed.ac.uk">Wolfgang Merkt</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>image_transport</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf</depend>
+  <depend>pods</depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export />
+</package>
