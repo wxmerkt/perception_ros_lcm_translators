@@ -62,7 +62,7 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
 
     std::vector<int> params;
     params.push_back(cv::IMWRITE_JPEG_QUALITY);
-    params.push_back(90);
+    params.push_back(80);
 
     cv::imencode(".jpg", mat, lcm_rgb.data, params);
     lcm_rgb.size = lcm_rgb.data.size();
@@ -147,7 +147,9 @@ int main(int argc, char** argv) {
   sync.registerCallback(boost::bind(&callback, _1, _2));
 
   ROS_INFO_STREAM("ROS2LCM Kinect Translator ready for "
-                  << camera_name << " and using rectified: " << use_rectified);
+                  << camera_name << " and using rectified: " << use_rectified
+                  << ", flip rgb: " << flip_rgb
+                  << ",  and using compressed: " << compress_images);
 
   ros::spin();
   return 0;
