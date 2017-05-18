@@ -3,19 +3,23 @@ project(perception_ros2lcm_translators)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
   image_transport
   pods
   roscpp
   sensor_msgs
+  stereo_msgs
   tf
 )
 
 catkin_package(
   CATKIN_DEPENDS
+    cv_bridge
     image_transport
     pods
     roscpp
     sensor_msgs
+    stereo_msgs
     tf
   DEPENDS system_lib
 )
@@ -35,6 +39,10 @@ include_directories(
 add_executable(ros2lcm_kinect src/ros2lcm_kinect.cpp)
 target_link_libraries(ros2lcm_kinect ${catkin_LIBRARIES} z)
 pods_use_pkg_config_packages(ros2lcm_kinect lcm bot2-core opencv)
+
+add_executable(disparity_image_republisher src/disparity_image_republisher.cpp)
+target_link_libraries(disparity_image_republisher ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##
