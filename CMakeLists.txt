@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 2.8.12)
-project(perception_ros2lcm_translators)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(catkin REQUIRED COMPONENTS
@@ -12,7 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
+project(perception_ros_lcm_translators)
 catkin_package(
+  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS
     cv_bridge
     image_transport
@@ -21,7 +22,7 @@ catkin_package(
     sensor_msgs
     stereo_msgs
     tf
-  DEPENDS system_lib
+  DEPENDS opencv lcm
 )
 
 ###########
@@ -56,12 +57,4 @@ install(TARGETS ${TARGETS}
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-        )
-install(DIRECTORY launch/
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-        PATTERN ".svn" EXCLUDE
-        )
-install(DIRECTORY resources/
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/resources
-        PATTERN ".svn" EXCLUDE
         )
