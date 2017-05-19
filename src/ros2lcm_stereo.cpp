@@ -250,7 +250,13 @@ void App::prepImage(bot_core::image_t& lcm_image,
 
   } else if (ros_image->encoding.compare("32FC1") == 0) {
     // Need to convert to 16UC1 as we assume Multisense-like disparity images
-    cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(ros_image, "16UC1");
+    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(ros_image, "16UC1");
+    cv_ptr->image = cv_ptr->image / 0.0625; // d, minimum increment as from ROS
+    
+    // cv_bridge::CvImagePtr ros_test = cv_bridge::toCvCopy(ros_image);
+    // cv::imshow("ROS", ros_test->image);
+    // cv::imshow("After Conversion", cv_ptr->image);
+    // cv::waitKey(1);
 
     n_colors = 2;  // 2 bytes per pixel
 
