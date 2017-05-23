@@ -3,9 +3,12 @@
 #include <vector>
 
 // ### ROS
+#include <image_transport/image_transport.h>
+#include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
+#include <message_filters/time_synchronizer.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 
@@ -130,13 +133,19 @@ int main(int argc, char** argv) {
 
   // rgb: image_color, image_rect_color
   // depth: 32FC1: image, image_rect and 16UC1: image_raw, image_rect_raw
-  message_filters::Subscriber<sensor_msgs::Image> image1_sub, image2_sub;
+  image_transport::ImageTransport it(nh);
+  image_transport::SubscriberFilter image1_sub, image2_sub;
+
+  image_transport::TransportHints hintCompressed("compressed", ros::TransportHints(), nh);
+  image_transport::TransportHints hintCompressedDepth("compressedDepth", ros::TransportHints(), nh);
+  image_transport::TransportHints hintRaw("raw", ros::TransportHints(), nh);
+
   if (!use_rectified) {
-    image1_sub.subscribe(nh, camera_name + "/rgb/image_raw", 1);
-    image2_sub.subscribe(nh, camera_name + "/depth/image_raw", 1);
+    image1_sub.subscribe(it, camera_name + "/rgb/image_raw", 1, hintCompressed);
+    image2_sub.subscribe(it, camera_name + "/depth/image_raw", 1, hintCompressedDepth);
   } else {
-    image1_sub.subscribe(nh, camera_name + "/rgb/image_rect_color", 1);
-    image2_sub.subscribe(nh, camera_name + "/depth/image_rect_raw", 1);
+    image1_sub.subscribe(it, camera_name + "/rgb/image_rect_color", 1, hintCompressed);
+    image2_sub.subscribe(it, camera_name + "/depth/image_rect", 1, hintCompressedDepth);
   }
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image,
