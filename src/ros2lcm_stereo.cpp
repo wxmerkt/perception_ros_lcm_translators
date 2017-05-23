@@ -112,10 +112,10 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
             << " is the image_a topic subscription [for stereo]\n";
   std::cout << image_b_string
             << " is the image_b topic subscription [for stereo]\n";
-  image_a_ros_sub_.subscribe(it_, ros::names::resolve(image_a_string), 30);
-  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 30);
-  image_b_ros_sub_.subscribe(it_, ros::names::resolve(image_b_string), 30);
-  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 30);
+  image_a_ros_sub_.subscribe(it_, ros::names::resolve(image_a_string), 5);
+  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 5);
+  image_b_ros_sub_.subscribe(it_, ros::names::resolve(image_b_string), 5);
+  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 5);
   sync_.connectInput(image_a_ros_sub_, info_a_ros_sub_, image_b_ros_sub_,
                      info_b_ros_sub_);
   sync_.registerCallback(
