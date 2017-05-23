@@ -50,8 +50,11 @@ target_link_libraries(disparity_image_republisher ${catkin_LIBRARIES})
 
 add_executable(ros2lcm_camera src/ros2lcm_camera.cpp)
 target_link_libraries(ros2lcm_camera ${catkin_LIBRARIES})
-pods_use_pkg_config_packages(ros2lcm_camera lcm bot2-core eigen3 opencv)
+pods_use_pkg_config_packages(ros2lcm_camera lcm bot2-core opencv)
 
+add_executable(ros2lcm_disparity src/ros2lcm_disparity.cpp)
+target_link_libraries(ros2lcm_disparity ${catkin_LIBRARIES} z)
+pods_use_pkg_config_packages(ros2lcm_disparity lcm bot2-core)
 
 #############
 ## Install ##
