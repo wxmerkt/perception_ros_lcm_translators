@@ -21,8 +21,6 @@
 
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
-#include <sensor_msgs/Imu.h>
-#include <std_msgs/Float64.h>
 
 #include <zlib.h>
 #include <lcm/lcm-cpp.hpp>
