@@ -3,6 +3,7 @@
 #include <vector>
 
 // ### ROS
+#include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
@@ -30,9 +31,15 @@ uint8_t* local_img_buffer_ =
                                           // kinect_lcm
 bool compress_images;
 bool flip_rgb;
+std::string lcmChannel_;
+int counter = 0;
 
 void callback(const sensor_msgs::ImageConstPtr& rgb,
               const sensor_msgs::ImageConstPtr& depth) {
+  counter++;
+  if (counter % 30 == 0)
+    ROS_INFO_STREAM(lcmChannel_ << " DEPTH[" << counter << "]");
+
   int n_colors = 3;
   bot_core::image_t lcm_rgb;
   lcm_rgb.utime = static_cast<int64_t>(rgb->header.stamp.toNSec() /
@@ -63,6 +70,8 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
     cv::Mat mat(rgb->height, rgb->width, CV_8UC3, bytes, n_colors * rgb->width);
     if (flip_rgb) cv::cvtColor(mat, mat, CV_BGR2RGB);
 
+    // TODO(wxm) check encoding and do the division game again
+
     std::vector<int> params;
     params.push_back(cv::IMWRITE_JPEG_QUALITY);
     params.push_back(80);
@@ -71,7 +80,6 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
     lcm_rgb.size = lcm_rgb.data.size();
     lcm_rgb.pixelformat = bot_core::image_t::PIXEL_FORMAT_MJPEG;
   }
-  // lcm_->publish("OPENNI_RGB", &lcm_rgb);
 
   bot_core::image_t lcm_depth;
   lcm_depth.utime = static_cast<int64_t>(depth->header.stamp.toNSec() /
@@ -88,16 +96,38 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
   } else {
     int uncompressed_size = 480 * 640 * 2;
     unsigned long compressed_size = local_img_buffer_size_;
-    compress2(local_img_buffer_, &compressed_size,
-              (const Bytef*)depth->data.data(), uncompressed_size,
-              Z_BEST_SPEED);
 
-    lcm_depth.data.resize(compressed_size);
-    std::copy(local_img_buffer_, local_img_buffer_ + compressed_size,
-              lcm_depth.data.begin());
-    lcm_depth.size = compressed_size;
+    // OpenNI2 = 16UC1
+    if (depth->encoding.compare("16UC1") == 0) {  
+      compress2(local_img_buffer_, &compressed_size,
+                (const Bytef*)depth->data.data(), uncompressed_size,
+                Z_BEST_SPEED);
+
+      lcm_depth.data.resize(compressed_size);
+      std::copy(local_img_buffer_, local_img_buffer_ + compressed_size,
+                lcm_depth.data.begin());
+      lcm_depth.size = compressed_size;
+    } else if (depth->encoding.compare("32FC1") == 0) {
+      // Need to convert to 16UC1 as we assume Multisense-like disparity images
+      cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(depth, "16UC1");
+      cv_ptr->image = cv_ptr->image / 0.0625; // d, minimum increment as from ROS
+      cv_bridge::CvImagePtr ros_test = cv_bridge::toCvCopy(depth);
+      cv::imshow("ROS", ros_test->image);
+      cv::imshow("After Conversion", cv_ptr->image);
+      cv::waitKey(1);
+
+      compress2(local_img_buffer_, &compressed_size,
+                (const Bytef*)cv_ptr->image.data, uncompressed_size,
+                Z_BEST_SPEED);
+
+      lcm_depth.data.resize(compressed_size);
+      std::copy(local_img_buffer_, local_img_buffer_ + compressed_size,
+                lcm_depth.data.begin());
+      lcm_depth.size = compressed_size;
+    } else {
+      ROS_ERROR_STREAM("Depth format not understood: " << depth->encoding);
+    }
   }
-  // lcm_->publish("OPENNI_DEPTH_ONLY", &lcm_depth);
 
   bot_core::images_t out;
   out.utime = static_cast<int64_t>(rgb->header.stamp.toNSec() /
@@ -112,7 +142,7 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
   out.images.resize(out.n_images);
   out.images[0] = lcm_rgb;
   out.images[1] = lcm_depth;
-  lcm_->publish("OPENNI_FRAME", &out);
+  lcm_->publish(lcmChannel_.c_str(), &out);
 }
 
 int main(int argc, char** argv) {
@@ -127,6 +157,7 @@ int main(int argc, char** argv) {
   std::string camera_name;
   bool use_rectified;
   nh_.param<std::string>("camera", camera_name, "/camera");
+  nh_.param<std::string>("lcm_channel", lcmChannel_, "OPENNI_FRAME");
   nh_.param<bool>("rectified", use_rectified, false);
   nh_.param<bool>("compress_images", compress_images, true);
   nh_.param<bool>("flip_rgb", flip_rgb, false);
@@ -136,29 +167,41 @@ int main(int argc, char** argv) {
   image_transport::ImageTransport it(nh);
   image_transport::SubscriberFilter image1_sub, image2_sub;
 
-  image_transport::TransportHints hintCompressed("compressed", ros::TransportHints(), nh);
-  image_transport::TransportHints hintCompressedDepth("compressedDepth", ros::TransportHints(), nh);
+  image_transport::TransportHints hintCompressed("compressed",
+                                                 ros::TransportHints(), nh);
+  image_transport::TransportHints hintCompressedDepth(
+      "compressedDepth", ros::TransportHints(), nh);
   image_transport::TransportHints hintRaw("raw", ros::TransportHints(), nh);
 
+  std::string rgb_topic, depth_topic;
+
   if (!use_rectified) {
-    image1_sub.subscribe(it, camera_name + "/rgb/image_raw", 1, hintCompressed);
-    image2_sub.subscribe(it, camera_name + "/depth/image_raw", 1, hintCompressedDepth);
+    rgb_topic = camera_name + "/rgb/image_raw";
+    depth_topic = camera_name + "/depth/image_raw";
   } else {
-    image1_sub.subscribe(it, camera_name + "/rgb/image_rect_color", 1, hintCompressed);
-    image2_sub.subscribe(it, camera_name + "/depth/image_rect", 1, hintCompressedDepth);
+    rgb_topic = camera_name + "/rgb/image_rect_color";
+    depth_topic = camera_name + "/depth/image_rect";
   }
+
+  std::string resolved_rgb_topic = ros::names::resolve(rgb_topic);
+  std::string resolved_depth_topic = ros::names::resolve(depth_topic);
+
+  image1_sub.subscribe(it, resolved_rgb_topic, 5, hintCompressed);
+  image2_sub.subscribe(it, resolved_depth_topic, 5, hintCompressedDepth);
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image,
                                                           sensor_msgs::Image>
       MySyncPolicy;
-  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1), image1_sub,
+  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(5), image1_sub,
                                                    image2_sub);
   sync.registerCallback(boost::bind(&callback, _1, _2));
 
   ROS_INFO_STREAM("ROS2LCM Kinect Translator ready for "
                   << camera_name << " and using rectified: " << use_rectified
-                  << ", flip rgb: " << flip_rgb
-                  << ",  and using compressed: " << compress_images);
+                  << ", flip rgb: " << flip_rgb << ",  and using compressed: "
+                  << compress_images << " and publishing on " << lcmChannel_);
+  ROS_INFO_STREAM("Using RGB topic: " << resolved_rgb_topic);
+  ROS_INFO_STREAM("Using depth topic: " << resolved_depth_topic);
 
   ros::spin();
   return 0;
