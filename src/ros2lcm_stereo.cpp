@@ -21,7 +21,7 @@
 
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
-#include <sensor_msgs/Imu.h>
+#include <stereo_msgs/DisparityImage.h>
 #include <std_msgs/Float64.h>
 
 #include <zlib.h>
@@ -53,14 +53,13 @@ class App {
   ///////////////////////////////////////////////////////////////////////////////
   void head_stereo_cb(const sensor_msgs::ImageConstPtr& image_a_ros,
                       const sensor_msgs::CameraInfoConstPtr& info_cam_a,
-                      const sensor_msgs::ImageConstPtr& image_b_ros,
+                      const stereo_msgs::DisparityImageConstPtr& image_b_ros,
                       const sensor_msgs::CameraInfoConstPtr& info_cam_b);
-  image_transport::SubscriberFilter image_a_ros_sub_, image_b_ros_sub_;
+  // image_transport::SubscriberFilter image_a_ros_sub_, image_b_ros_sub_;
+  message_filters::Subscriber<sensor_msgs::Image> image_a_ros_sub_;
+  message_filters::Subscriber<stereo_msgs::DisparityImage> image_b_ros_sub_;
   message_filters::Subscriber<sensor_msgs::CameraInfo> info_a_ros_sub_,
       info_b_ros_sub_;
-  message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::CameraInfo,
-                                    sensor_msgs::Image, sensor_msgs::CameraInfo>
-      sync_;
 
   bool do_jpeg_compress_;
   int jpeg_quality_;
@@ -72,7 +71,7 @@ class App {
                  const sensor_msgs::ImageConstPtr& ros_image);
 };
 
-App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
+App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in) {
   if (!lcm_publish_.good()) {
     std::cerr << "ERROR: lcm is not good()" << std::endl;
   }
@@ -83,7 +82,7 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
   depth_compress_buf_size_ = 480 * 640 * sizeof(int8_t) * 10;
   depth_compress_buf_ = (uint8_t*)malloc(depth_compress_buf_size_);
   do_jpeg_compress_ = true;
-  jpeg_quality_ = 95;  // 95 is opencv default
+  jpeg_quality_ = 50;  // 95 is opencv default
   do_zlib_compress_ = true;
 
   std::string image_a_string, info_a_string, image_b_string, info_b_string;
@@ -99,7 +98,7 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
     info_b_string = head_stereo_root + "/right/camera_info";
     image_b_type_ = bot_core::images_t::RIGHT;
   } else {
-    image_b_string = head_stereo_root + "/pure_disparity";
+    image_b_string = head_stereo_root + "/disparity";
     info_b_string = head_stereo_root + "/right/camera_info";
     if (do_zlib_compress_) {
       image_b_type_ = bot_core::images_t::DISPARITY_ZIPPED;
@@ -112,10 +111,13 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
             << " is the image_a topic subscription [for stereo]\n";
   std::cout << image_b_string
             << " is the image_b topic subscription [for stereo]\n";
-  image_a_ros_sub_.subscribe(it_, ros::names::resolve(image_a_string), 5);
-  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 5);
-  image_b_ros_sub_.subscribe(it_, ros::names::resolve(image_b_string), 5);
-  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 5);
+  image_a_ros_sub_.subscribe(node_, ros::names::resolve(image_a_string), 30);
+  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 30);
+  image_b_ros_sub_.subscribe(node_, ros::names::resolve(image_b_string), 30);
+  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 30);
+
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::CameraInfo, stereo_msgs::DisparityImage, sensor_msgs::CameraInfo> syncPolicy;
+  message_filters::Synchronizer<syncPolicy> sync_(10);//syncPolicy(10), image_a_ros_sub_, info_a_ros_sub_, image_b_ros_sub_, info_b_ros_sub_);
   sync_.connectInput(image_a_ros_sub_, info_a_ros_sub_, image_b_ros_sub_,
                      info_b_ros_sub_);
   sync_.registerCallback(
@@ -133,13 +135,14 @@ App::~App() {}
 
 int stereo_counter = 0;
 void App::head_stereo_cb(const sensor_msgs::ImageConstPtr& image_a_ros,
-                         const sensor_msgs::CameraInfoConstPtr& info_a_ros,
-                         const sensor_msgs::ImageConstPtr& image_b_ros,
-                         const sensor_msgs::CameraInfoConstPtr& info_b_ros) {
+                        const sensor_msgs::CameraInfoConstPtr& info_a_ros,
+                        const stereo_msgs::DisparityImageConstPtr& image_b_ros,
+                        const sensor_msgs::CameraInfoConstPtr& info_b_ros) {
   int64_t current_utime =
       (int64_t)floor(image_a_ros->header.stamp.toNSec() / 1000);
 
-  publishStereo(image_a_ros, info_a_ros, image_b_ros, info_b_ros,
+  sensor_msgs::ImageConstPtr img_b = sensor_msgs::ImageConstPtr(new sensor_msgs::Image(image_b_ros->image));
+  publishStereo(image_a_ros, info_a_ros, img_b, info_b_ros,
                 "MULTISENSE_CAMERA");
 
   if (stereo_counter % 30 == 0) {
@@ -162,7 +165,7 @@ void App::publishStereo(const sensor_msgs::ImageConstPtr& image_a_ros,
   images_msg_out_.n_images = images_msg_out_.images.size();
   images_msg_out_.utime =
       (int64_t)floor(image_a_ros->header.stamp.toNSec() / 1000);
-  lcm_publish_.publish("MULTISENSE_CAMERA", &images_msg_out_);
+  lcm_publish_.publish(camera_out.c_str(), &images_msg_out_);
   return;
 }
 
