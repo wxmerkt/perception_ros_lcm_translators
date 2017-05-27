@@ -43,6 +43,7 @@ private:
 
   bool flip_rgb;
   std::string lcmChannel_;
+  int jpeg_quality_ = 90;
 };
 
 App::App(ros::NodeHandle node_) :
@@ -59,9 +60,10 @@ App::App(ros::NodeHandle node_) :
   nh_.getParam("camera_topic", cameraTopic);
   nh_.getParam("flip_rgb", flip_rgb);
   nh_.getParam("lcm_channel", lcmChannel_);
+  nh_.getParam("jpeg_quality", jpeg_quality_);
   if (lcmChannel_ == "") lcmChannel_ = "MULTISENSE_CAMERA_LEFT";
   ROS_INFO_STREAM("Subscribing to " << cameraTopic << " and publishing on " << lcmChannel_);
-  ROS_INFO_STREAM("flip_rgb: " << static_cast<int>(flip_rgb));
+  ROS_INFO_STREAM("flip_rgb: " << static_cast<int>(flip_rgb) << " - JPEG quality: " << jpeg_quality_);
   headLeftImageSub_ = node_.subscribe(cameraTopic, 1, &App::headLeftImageCallback, this);
 }
 
@@ -110,7 +112,7 @@ void App::publishImage(const sensor_msgs::ImageConstPtr& msg, std::string channe
   {
     std::vector<int> params;
     params.push_back(cv::IMWRITE_JPEG_QUALITY);
-    params.push_back(90);
+    params.push_back(jpeg_quality_);
 
     if (flip_rgb)
       cv::cvtColor(mat, mat, CV_BGR2RGB);
