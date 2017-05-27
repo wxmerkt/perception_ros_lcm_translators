@@ -70,7 +70,7 @@ class App {
                  const sensor_msgs::ImageConstPtr& ros_image);
 };
 
-App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
+App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(5) {
   if (!lcm_publish_.good()) {
     std::cerr << "ERROR: lcm is not good()" << std::endl;
   }
@@ -110,10 +110,10 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(10) {
             << " is the image_a topic subscription [for stereo]\n";
   std::cout << image_b_string
             << " is the image_b topic subscription [for stereo]\n";
-  image_a_ros_sub_.subscribe(it_, ros::names::resolve(image_a_string), 5);
-  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 5);
-  image_b_ros_sub_.subscribe(it_, ros::names::resolve(image_b_string), 5);
-  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 5);
+  image_a_ros_sub_.subscribe(it_, ros::names::resolve(image_a_string), 1);
+  info_a_ros_sub_.subscribe(node_, ros::names::resolve(info_a_string), 1);
+  image_b_ros_sub_.subscribe(it_, ros::names::resolve(image_b_string), 1);
+  info_b_ros_sub_.subscribe(node_, ros::names::resolve(info_b_string), 1);
   sync_.connectInput(image_a_ros_sub_, info_a_ros_sub_, image_b_ros_sub_,
                      info_b_ros_sub_);
   sync_.registerCallback(
