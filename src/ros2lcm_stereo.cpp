@@ -34,7 +34,7 @@ class App {
 
  private:
   lcm::LCM lcm_publish_;
-  ros::NodeHandle node_;
+  ros::NodeHandle node_, nh_;
 
   // Combined Stereo Image:
   bot_core::images_t images_msg_out_;
@@ -70,7 +70,7 @@ class App {
                  const sensor_msgs::ImageConstPtr& ros_image);
 };
 
-App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(5) {
+App::App(ros::NodeHandle node_in) : node_(node_in), nh_("~"), it_(node_in), sync_(5) {
   if (!lcm_publish_.good()) {
     std::cerr << "ERROR: lcm is not good()" << std::endl;
   }
@@ -81,8 +81,10 @@ App::App(ros::NodeHandle node_in) : node_(node_in), it_(node_in), sync_(5) {
   depth_compress_buf_size_ = 480 * 640 * sizeof(int8_t) * 10;
   depth_compress_buf_ = (uint8_t*)malloc(depth_compress_buf_size_);
   do_jpeg_compress_ = true;
-  jpeg_quality_ = 95;  // 95 is opencv default
+  nh_.param<int>("jpeg_quality", jpeg_quality_, 95); // 95 is opencv default
   do_zlib_compress_ = true;
+
+  ROS_INFO_STREAM("JPEG Quality: " << jpeg_quality_);
 
   std::string image_a_string, info_a_string, image_b_string, info_b_string;
   std::string head_stereo_root = "/camera";
