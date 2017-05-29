@@ -30,6 +30,7 @@ uint8_t* local_img_buffer_ =
                                           // kinect_lcm
 bool compress_images;
 bool flip_rgb;
+int jpeg_quality = 95;
 
 void callback(const sensor_msgs::ImageConstPtr& rgb,
               const sensor_msgs::ImageConstPtr& depth) {
@@ -65,7 +66,7 @@ void callback(const sensor_msgs::ImageConstPtr& rgb,
 
     std::vector<int> params;
     params.push_back(cv::IMWRITE_JPEG_QUALITY);
-    params.push_back(80);
+    params.push_back(jpeg_quality);
 
     cv::imencode(".jpg", mat, lcm_rgb.data, params);
     lcm_rgb.size = lcm_rgb.data.size();
@@ -130,6 +131,7 @@ int main(int argc, char** argv) {
   nh_.param<bool>("rectified", use_rectified, false);
   nh_.param<bool>("compress_images", compress_images, true);
   nh_.param<bool>("flip_rgb", flip_rgb, false);
+  nh_.param<int>("jpeg_quality", jpeg_quality, 95);
 
   // rgb: image_color, image_rect_color
   // depth: 32FC1: image, image_rect and 16UC1: image_raw, image_rect_raw
@@ -158,7 +160,8 @@ int main(int argc, char** argv) {
   ROS_INFO_STREAM("ROS2LCM Kinect Translator ready for "
                   << camera_name << " and using rectified: " << use_rectified
                   << ", flip rgb: " << flip_rgb
-                  << ",  and using compressed: " << compress_images);
+                  << ",  and using compressed: " << compress_images
+                  << ", JPEG quality: " << jpeg_quality);
 
   ros::spin();
   return 0;
