@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image,
                                                           sensor_msgs::Image>
       MySyncPolicy;
-  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1), image1_sub,
+  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), image1_sub,
                                                    image2_sub);
   sync.registerCallback(boost::bind(&callback, _1, _2));
 
